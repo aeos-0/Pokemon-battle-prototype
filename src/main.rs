@@ -1,5 +1,5 @@
 use rand::{thread_rng, Rng};
-use clap::Parser;
+use serde_json::json;
 use rusqlite::{Connection, Result};
 
 #[derive(Debug, Default)]
@@ -21,10 +21,7 @@ struct Pokemon {
     total_hp: u32
 }
 
-//Maybe but not neccesary
-/*impl Pokemon {
-    
-}*/
+
 
 //May need to wrap pokemon around move struct
 #[derive(Debug)]
@@ -39,6 +36,7 @@ struct Move {
     crit: f32,
     description: String
 }
+
 
 
 fn main() {
@@ -81,11 +79,559 @@ fn main() {
             std::process::exit(1);
         }
 
+        //Have the user pick moves on both of the pokemon in play
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+
+        input = input.trim().to_string();
+        input.make_ascii_lowercase();
+
+        let move1 = get_moves(&input).unwrap();
+
+        println!("");
+
+        //Setup second pokemon
+        println!("What will {:?} do?", poke2.name);
+
+        //Display list of moves for the pokemon
+        if let Some(move_vec) = &poke2.moveset {
+            for pokemon_move in move_vec {
+                println!("- {:?}", pokemon_move.name);     
+            }
+        } else {
+            println!("{:?} has no moves and is unable to battle", poke2.name);
+            std::process::exit(1);
+        }
+
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+
+        input = input.trim().to_string();
+        input.make_ascii_lowercase();
         
+        let move2 = get_moves(&input).unwrap();
+
+        //Now that we have both moves calculate speeds and damages
+        //First priority then speeds
+        //For priority only check if one is higher than the other
+        if move1.priority > move2.priority { 
+            //First mon moves first, ignore speed check
+            damage_calc(&poke1, &move1, &mut poke2);
+            damage_calc(&poke2, &move2, &mut poke1);
+        } else if move2.priority > move1.priority {
+            //Second mon moves ignore speed check
+            damage_calc(&poke2, &move2, &mut poke1);
+            damage_calc(&poke1, &move1, &mut poke2);
+        }
+
+
+
+        //If priority is the same then go off the speed stat
+        if poke1.base_speed > poke2.base_speed { 
+            damage_calc(&poke1, &move1, &mut poke2);
+            damage_calc(&poke2, &move2, &mut poke1);
+        } else if poke2.base_speed > poke1.base_speed {
+            damage_calc(&poke2, &move2, &mut poke1);
+            damage_calc(&poke1, &move1, &mut poke2);
+        } else {
+            //Speed tie
+            let mut rng = thread_rng();
+            let value = rng.gen_bool(1.0/2.0);
+
+            //Randomly decides one
+            if value {
+                damage_calc(&poke1, &move1, &mut poke2);
+                damage_calc(&poke2, &move2, &mut poke1);
+            } else {
+                damage_calc(&poke2, &move2, &mut poke1);
+                damage_calc(&poke1, &move1, &mut poke2);
+            }
+
+        }
     }
     
 
 
+}
+
+
+
+fn damage_calc(attacker :&Pokemon, move_ :&Move, defender: &mut Pokemon) {
+        //Setup json file
+        let matchup: serde_json::Value = json!({
+            "normal": {
+                "normal": 1.0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 0.5,
+                "ghost": 0,
+                "dragon": 1.0,
+                "dark": 1.0,
+                "steel": 0.5,
+                "fairy": 1.0
+            },
+            "fire": {
+                "normal": 1.0,
+                "fire": 0.5,
+                "water": 0.5,
+                "grass": 2.0,
+                "electric": 1.0,
+                "ice": 2.0,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 2.0,
+                "rock": 0.5,
+                "ghost": 1.0,
+                "dragon": 0.5,
+                "dark": 1.0,
+                "steel": 2.0,
+                "fairy": 1.0
+            },
+            "water": {
+                "normal": 1.0,
+                "fire": 2.0,
+                "water": 0.5,
+                "grass": 0.5,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 2.0,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 2.0,
+                "ghost": 1.0,
+                "dragon": 0.5,
+                "dark": 1.0,
+                "steel": 1.0,
+                "fairy": 1.0
+            },
+            "grass": {
+                "normal": 1.0,
+                "fire": 0.5,
+                "water": 2.0,
+                "grass": 0.5,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 0.5,
+                "ground": 2.0,
+                "flying": 0.5,
+                "psychic": 1.0,
+                "bug": 0.5,
+                "rock": 2.0,
+                "ghost": 1.0,
+                "dragon": 0.5,
+                "dark": 1.0,
+                "steel": 0.5,
+                "fairy": 1.0
+            },
+            "electric": {
+                "normal": 1.0,
+                "fire": 1.0,
+                "water": 2.0,
+                "grass": 0.5,
+                "electric": 0.5,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 0,
+                "flying": 2.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 1.0,
+                "dragon": 0.5,
+                "dark": 1.0,
+                "steel": 1.0,
+                "fairy": 1.0
+            },
+            "ice": {
+                "normal": 1.0,
+                "fire": 0.5,
+                "water": 0.5,
+                "grass": 2.0,
+                "electric": 1.0,
+                "ice": 0.5,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 2.0,
+                "flying": 2.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 1.0,
+                "dragon": 2.0,
+                "dark": 1.0,
+                "steel": 0.5,
+                "fairy": 1.0
+            },
+            "fighting": {
+                "normal": 2.0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 2.0,
+                "fighting": 1.0,
+                "poison": 0.5,
+                "ground": 1.0,
+                "flying": 0.5,
+                "psychic": 0.5,
+                "bug": 0.5,
+                "rock": 2.0,
+                "ghost": 0,
+                "dragon": 1.0,
+                "dark": 2.0,
+                "steel": 2.0,
+                "fairy": 0.5
+            },
+            "poison": {
+                "normal": 1.0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 2.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 0.5,
+                "ground": 0.5,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 0.5,
+                "ghost": 0.5,
+                "dragon": 1.0,
+                "dark": 1.0,
+                "steel": 1.0,
+                "fairy": 2.0
+            },
+            "ground": {
+                "normal": 1.0,
+                "fire": 2.0,
+                "water": 1.0,
+                "grass": 0.5,
+                "electric": 2.0,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 2.0,
+                "ground": 1.0,
+                "flying": 0,
+                "psychic": 1.0,
+                "bug": 0.5,
+                "rock": 2.0,
+                "ghost": 1.0,
+                "dragon": 1.0,
+                "dark": 1.0,
+                "steel": 2.0,
+                "fairy": 1.0
+            },
+            "flying": {
+                "normal": 1.0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 2.0,
+                "electric": 0.5,
+                "ice": 1.0,
+                "fighting": 2.0,
+                "poison": 1.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 2.0,
+                "rock": 0.5,
+                "ghost": 1.0,
+                "dragon": 1.0,
+                "dark": 1.0,
+                "steel": 0.5,
+                "fairy": 1.0
+            },
+            "psychic": {
+                "normal": 1.0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 2.0,
+                "poison": 2.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 0.5,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 1.0,
+                "dragon": 1.0,
+                "dark": 0,
+                "steel": 0.5,
+                "fairy": 1.0
+            },
+            "bug": {
+                "normal": 1.0,
+                "fire": 0.5,
+                "water": 1.0,
+                "grass": 2.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 0.5,
+                "poison": 0.5,
+                "ground": 1.0,
+                "flying": 0.5,
+                "psychic": 2.0,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 0.5,
+                "dragon": 1.0,
+                "dark": 2.0,
+                "steel": 0.5,
+                "fairy": 0.5
+            },
+            "rock": {
+                "normal": 1.0,
+                "fire": 2.0,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 2.0,
+                "fighting": 0.5,
+                "poison": 1.0,
+                "ground": 0.5,
+                "flying": 2.0,
+                "psychic": 1.0,
+                "bug": 2.0,
+                "rock": 1.0,
+                "ghost": 1.0,
+                "dragon": 1.0,
+                "dark": 1.0,
+                "steel": 0.5,
+                "fairy": 1.0
+            },
+            "ghost": {
+                "normal": 0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 2.0,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 2.0,
+                "dragon": 1.0,
+                "dark": 0.5,
+                "steel": 1.0,
+                "fairy": 1.0
+            },
+            "dragon": {
+                "normal": 1.0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 1.0,
+                "dragon": 2.0,
+                "dark": 1.0,
+                "steel": 0.5,
+                "fairy": 0
+            },
+            "dark": {
+                "normal": 1.0,
+                "fire": 1.0,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 0.5,
+                "poison": 1.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 2.0,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 2.0,
+                "dragon": 1.0,
+                "dark": 0.5,
+                "steel": 1.0,
+                "fairy": 0.5
+            },
+            "steel": {
+                "normal": 1.0,
+                "fire": 0.5,
+                "water": 0.5,
+                "grass": 1.0,
+                "electric": 0.5,
+                "ice": 2.0,
+                "fighting": 1.0,
+                "poison": 1.0,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 2.0,
+                "ghost": 1.0,
+                "dragon": 1.0,
+                "dark": 1.0,
+                "steel": 0.5,
+                "fairy": 2.0
+            },
+            "fairy": {
+                "normal": 1.0,
+                "fire": 0.5,
+                "water": 1.0,
+                "grass": 1.0,
+                "electric": 1.0,
+                "ice": 1.0,
+                "fighting": 2.0,
+                "poison": 0.5,
+                "ground": 1.0,
+                "flying": 1.0,
+                "psychic": 1.0,
+                "bug": 1.0,
+                "rock": 1.0,
+                "ghost": 1.0,
+                "dragon": 2.0,
+                "dark": 2.0,
+                "steel": 0.5,
+                "fairy": 1.0
+            }
+        });
+    println!("");
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    println!("{:?} used {:?}!", attacker.name, move_.name);
+
+    let mut rng = thread_rng();
+    //Check if the move passes accuracy
+    let accuracy = rng.gen_bool(move_.accuracy as f64 / 100.0);
+    if !accuracy {
+        //The move missed
+        println!("{:?} avoided the attack!", &defender.name);
+        return;
+    }
+
+    //Check for stab
+    let stab;
+    if attacker.type1 == move_.type1 || attacker.type2.as_ref().unwrap() == &move_.type1 {
+        stab = 1.5;
+    } else {
+        stab = 1.0;
+    }
+
+    //Check for crit
+    let critical;
+    if rng.gen_bool(move_.crit as f64 / 100.0) { 
+        critical = 1.5;
+    } else {
+        critical = 1.0;
+    }
+
+    //Random number for damage rolls   
+    let random = rng.gen_range(85.0..=100.0) / 100.0;
+
+    //Special or physical?
+    let cat: f64;
+    match move_.category.as_str() {
+        "physical" => cat = attacker.base_attack as f64 / defender.base_defense as f64,
+        "special" => cat = attacker.base_sp_attack as f64 / defender.base_sp_defense as f64,
+        _ => panic!("Unexpected move category value"),
+    }
+
+    //Check type matchup
+    let effectiveness;
+    let effective_num;
+    let mut effective_text = String::new();
+    //Check if second type exists
+    match defender.type2 {
+        Some(_) => {
+            // There are 2 types
+            effectiveness = matchup[&move_.type1][&defender.type1].to_string();
+            let float1: Result<f64, _> = effectiveness.parse();
+
+            let float2: Result<f64, _> = (matchup[&move_.type1.to_string()][&defender.type2.as_ref().unwrap().to_string()].to_string()).parse();
+
+            effective_num = float1.unwrap() * float2.unwrap();
+            println!("Effective_num: {:?}", effective_num);
+        }
+        None => {
+            // Only 1 type
+            effectiveness = matchup[&move_.type1][&defender.type1].to_string();
+            effective_num = effectiveness.parse().unwrap();
+        }
+    }
+
+    //Add matchup text
+    if effective_num == 0.0 {
+        effective_text = "It doesn't have any effect...".to_string();
+    } else if effective_num >= 2.0 {
+        effective_text = "It's super effective!".to_string();
+    } else {
+        effective_text = "It's not very effective...".to_string();
+    }
+
+    //Actual calc
+    let damage = ((22.0 * move_.base_power as f64 * cat / 50.0 + 2.0) * critical * random as f64 * stab * effective_num).round() as u32;
+
+    //Effectiveness
+    if !effective_text.is_empty() {
+        println!("{0}", effective_text);
+    }
+    
+    //Was it a crit?
+    if critical == 1.5 {
+        println!("A critical hit!");
+    }
+
+    println!("{:?} took {:?} damage.", &defender.name, damage);
+
+    if damage >= defender.total_hp {
+        //Pokemon is cooked
+        println!("{:?} has fainted!", &defender.name);
+        defender.total_hp = 0;
+        println!("{:?} wins!", attacker.name);
+        std::process::exit(0);
+    }
+
+    defender.total_hp -= damage;  
+
+    if defender.total_hp == 0 {
+        println!("{:?} has fainted!", &defender.name);
+        println!("{:?} wins!", attacker.name);
+        std::process::exit(0);
+    }
+
+    //Tell how much percent hp they have left remaining
+    let percent = (defender.total_hp as f64 / defender.base_hp as f64 * 100.0).round() as u32;
+    println!("{:?} has {:?} % hp remaining.", defender.name, percent);
+
+    println!("");
 }
 
 
@@ -99,6 +645,7 @@ fn get_stats(mut poke :Pokemon) -> Pokemon {
     let mut iv = rng.gen_range(0..=31);
     let mut calc: u32 = ((2 * poke.base_hp + iv) * 50 /100) + 60;
     poke.base_hp = calc;
+    poke.total_hp = calc;
 
     //Calculate attack
     iv = rng.gen_range(0..=31);
@@ -192,7 +739,7 @@ fn move_set(mut poke :Pokemon) -> Pokemon{
             }
         }
     }
-    println!("Moves: {:?}", poke.moveset);
+    println!("");
     return poke;
 }
 
@@ -220,10 +767,6 @@ fn get_pokemon(name: &String) -> Result<Pokemon, rusqlite::Error> {
             total_hp: 0
         })
     })?;
-    
-    // Fetch the result and assign it to a variable
-    //let poke = pokemon_iter.next().unwrap()?;
-    //println!("{:?}", poke);
 
     if let Some(result) = pokemon_iter.next() {
         return result;
