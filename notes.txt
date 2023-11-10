@@ -1,0 +1,93 @@
+
+
+
+IMPLEMENT BATTLE LOGIC
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//3 moves and 3 pokemon added to database
+//pokemondata.db
+    Table: pokemon
+        name text primary KEY
+        no integer
+        type1 text
+        type2 text
+        hp,attack,defense,spA,spD,speed
+        ability text
+
+    Table: moves
+        name text primary key
+        type text
+        power integer
+        accuracy int
+        category text
+        priority integer
+        pp integer
+        crit real (4.17 base)
+        description text
+
+
+
+
+//Each pokemon should have a map data structure for each type they can go against 
+    and the damage multiplier against them
+    For example: matchup[water] = 2
+    This indicates this pokemon is 2x weak to water
+
+
+//Store data in sqlite database
+    Can be indexed off of name or number, name might be easier for readability 
+    and different pokemon forms can be identified with letters
+    For example: urshifu-r, urshifu-s
+    
+//Pokemon data structure
+    name - string *KEY*
+    Id - int32  
+    Type 1 - string
+    Type 2 - string
+    Matchup - map[string]uint8 //Maybe have to be scratched and calculated each turn
+    image - gif?
+    cry - wav?
+    weight
+    height
+    stats - all ints
+    Ability - (later)
+    Nature - string
+    evs - uint8 (0-255)
+    
+
+//Pokemon Moves
+    Name - string
+    Type - string
+    base power - int
+    accuracy - int
+    category - physical, special, status
+    speed priority - int
+    power points - int
+    crit multiplier - float
+    effect - string
+
+//Game start
+    Abilities
+Loop: Abilities (After turn 2)
+    Check for swap based off speed (if swap ability check again)
+    *Turn starts*
+    Priority check
+    Moves
+    Effects: weather, screens, poison, burn
+
+
+//Query database and assign to variable
+    optimize Query
+    build frontend
